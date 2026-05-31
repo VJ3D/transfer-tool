@@ -1,11 +1,99 @@
 <!DOCTYPE html>
-<html>
+<html lang="ar" dir="rtl">
 <head>
-    <title>اختبار بسيط</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>نقل المنتجات - مكاني ستور</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        body { font-family: monospace; background: #0f172a; color: #4ade80; padding: 20px; }
+        .container { max-width: 800px; margin: 0 auto; background: #1e293b; padding: 20px; border-radius: 15px; }
+        button { background: #0284c7; color: white; border: none; padding: 15px 30px; border-radius: 25px; cursor: pointer; font-size: 18px; margin: 10px 0; }
+        .log { background: #0f172a; padding: 15px; border-radius: 10px; max-height: 400px; overflow-y: auto; font-size: 13px; margin-top: 15px; }
+        .success { color: #4ade80; }
+        .error { color: #f87171; }
+    </style>
 </head>
 <body>
-    <h1>اختبار</h1>
-    <button onclick="alert('الزر يعمل!')">اضغط هنا</button>
-    <p>إذا ظهرت رسالة "الزر يعمل!"، فهذا يعني أن الصفحة تعمل بشكل صحيح.</p>
+<div class="container">
+    <h2>🔄 نقل المنتجات إلى Supabase</h2>
+    <button id="startBtn">🚀 بدء النقل</button>
+    <div id="log" class="log">📋 جاهز... اضغط "بدء النقل"</div>
+</div>
+
+<script>
+    const SUPABASE_URL = "https://ymfxhrbjqubgpgxzhoqx.supabase.co";
+    const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InltZnhocmJqcXViZ3BneHpob3F4Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3OTk1NzQzOSwiZXhwIjoyMDk1NTMzNDM5fQ.VT0B4YeoWiZIY-_DLTlaYcz3Dn2Rrmqc6N1VVD-w18E";
+    const API_TOKEN = "t1JI0lA";
+    const API_BASE_URL = "https://rolemall.com/api";
+    
+    let supabase;
+    let logDiv = document.getElementById('log');
+    
+    function log(msg, isError = false) {
+        const div = document.createElement('div');
+        div.style.color = isError ? '#f87171' : '#4ade80';
+        div.innerHTML = (isError ? '🔴 ' : '🟢 ') + msg;
+        logDiv.appendChild(div);
+        logDiv.scrollTop = logDiv.scrollHeight;
+    }
+    
+    document.getElementById('startBtn').onclick = async function() {
+        logDiv.innerHTML = "";
+        log("🚀 بدء النقل...");
+        
+        try {
+            // الاتصال بـ Supabase
+            log("📡 الاتصال بـ Supabase...");
+            supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+            log("✅ تم الاتصال");
+            
+            // جلب الأقسام
+            log("📡 جلب الأقسام...");
+            const catRes = await fetch(API_BASE_URL + '/categories/');
+            const catData = await catRes.json();
+            const categories = catData.data?.categories || [];
+            log(`✅ تم جلب ${categories.length} قسم`);
+            
+            // إضافة الأقسام
+            for (let c of categories) {
+                await supabase.from('categories').upsert([{
+                    id: c._id,
+                    name: c.name,
+                    icon: '📁'
+                }]);
+            }
+            log(`✅ تم إضافة ${categories.length} قسم`);
+            
+            // جلب المنتجات (أول 50 منتج)
+            log("📡 جلب المنتجات... قد يستغرق دقيقة");
+            const prodRes = await fetch(API_BASE_URL + '/products/?token=' + API_TOKEN + '&page=1&limit=50');
+            const prodData = await prodRes.json();
+            const products = prodData.data?.products || [];
+            log(`✅ تم جلب ${products.length} منتج`);
+            
+            // إضافة المنتجات
+            log("📡 إضافة المنتجات إلى Supabase...");
+            let count = 0;
+            for (let p of products) {
+                const { error } = await supabase.from('products').upsert([{
+                    id: p._id,
+                    name: p.name,
+                    price: p.price || 0,
+                    image: p.img || null,
+                    category_id: p.category_id || null
+                }]);
+                if (!error) count++;
+            }
+            
+            log(`🎉 اكتمل! تم نقل ${count} منتج و ${categories.length} قسم`);
+            
+        } catch(e) {
+            log("❌ خطأ: " + e.message, true);
+        }
+    };
+    
+    log("✅ الأداة جاهزة. اضغط 'بدء النقل'");
+</script>
 </body>
 </html>
