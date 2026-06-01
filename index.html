@@ -10,14 +10,12 @@
         .container { max-width: 800px; margin: 0 auto; background: #1e293b; padding: 20px; border-radius: 15px; }
         button { background: #0284c7; color: white; border: none; padding: 15px 30px; border-radius: 25px; cursor: pointer; font-size: 18px; }
         .log { background: #0f172a; padding: 15px; border-radius: 10px; max-height: 400px; overflow-y: auto; font-size: 13px; margin-top: 15px; }
-        .success { color: #4ade80; }
-        .error { color: #f87171; }
     </style>
 </head>
 <body>
 <div class="container">
     <h2>🔄 نقل المنتجات إلى Supabase</h2>
-    <button id="startBtn">🚀 بدء النقل</button>
+    <button id="startBtn" onclick="startTransfer()">🚀 بدء النقل</button>
     <div id="log" class="log">📋 جاهز... اضغط "بدء النقل"</div>
 </div>
 
@@ -36,30 +34,22 @@
         div.innerHTML = (isError ? '🔴 ' : '🟢 ') + msg;
         logDiv.appendChild(div);
         logDiv.scrollTop = logDiv.scrollHeight;
-        console.log(msg);
     }
-    
-    // ربط الزر
-    document.getElementById('startBtn').onclick = startTransfer;
     
     async function startTransfer() {
         logDiv.innerHTML = "";
         log("🚀 بدء النقل...");
         
         try {
-            // 1. الاتصال بـ Supabase
-            log("📡 الاتصال بـ Supabase...");
             supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-            log("✅ تم الاتصال");
+            log("✅ تم الاتصال بـ Supabase");
             
-            // 2. جلب الأقسام
-            log("📡 جلب الأقسام...");
+            // جلب الأقسام
             const catRes = await fetch(API_BASE_URL + '/categories/');
             const catData = await catRes.json();
             const categories = catData.data?.categories || [];
             log(`✅ تم جلب ${categories.length} قسم`);
             
-            // 3. إضافة الأقسام
             for (let c of categories) {
                 await supabase.from('categories').upsert([{
                     id: c._id,
@@ -69,14 +59,12 @@
             }
             log(`✅ تم إضافة ${categories.length} قسم`);
             
-            // 4. جلب المنتجات (أول 50 منتج)
-            log("📡 جلب 50 منتجاً أولياً...");
-            const prodRes = await fetch(API_BASE_URL + '/products/?token=' + API_TOKEN + '&page=1&limit=50');
+            // جلب 20 منتج
+            const prodRes = await fetch(API_BASE_URL + '/products/?token=' + API_TOKEN + '&page=1&limit=20');
             const prodData = await prodRes.json();
             const products = prodData.data?.products || [];
             log(`✅ تم جلب ${products.length} منتج`);
             
-            // 5. إضافة المنتجات
             let count = 0;
             for (let p of products) {
                 const { error } = await supabase.from('products').upsert([{
@@ -89,12 +77,15 @@
                 if (!error) count++;
             }
             
-            log(`🎉 اكتمل! تم نقل ${count} منتج و ${categories.length} قسم`);
+            log(`🎉 اكتمل! تم نقل ${count} منتج`);
             
         } catch(e) {
             log("❌ خطأ: " + e.message, true);
         }
     }
+    
+    // رسالة تأكيد
+    log("✅ الأداة جاهزة. اضغط 'بدء النقل'");
 </script>
 </body>
 </html>
